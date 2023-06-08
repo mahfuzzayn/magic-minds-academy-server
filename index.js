@@ -150,11 +150,46 @@ async function run() {
         );
 
         // Classes API Routes
-        app.post('/classes', verifyJWT, verifyInstructor, async (req, res) => {
+        app.get("/classes", verifyJWT, verifyAdmin, async (req, res) => {
+            const result = await classesCollection.find().toArray();
+            res.send(result);
+        });
+
+        app.post("/classes", verifyJWT, verifyInstructor, async (req, res) => {
             const newClass = req.body;
             const result = await classesCollection.insertOne(newClass);
             res.send(result);
-        })
+        });
+
+        app.patch("/classes/:id", verifyJWT, verifyAdmin, async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const statusType = req.body;
+            let updatedClass = {};
+            if (statusType.action === "approve") {
+                updatedClass = {
+                    $set: {
+                        status: "approved",
+                    },
+                };
+            } else if (statusType.action === "deny") {
+                updatedClass = {
+                    $set: {
+                        status: "denied",
+                    },
+                };
+            } else {
+                res.status(204).send({
+                    error: true,
+                    message: "no payload found",
+                });
+            }
+            const result = await classesCollection.updateOne(
+                query,
+                updatedClass
+            );
+            res.send(result);
+        });
 
         // Dashboard API Routes
         // Admin Verify JWT Protected API Route
