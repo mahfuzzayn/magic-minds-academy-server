@@ -52,6 +52,19 @@ async function run() {
             .db("magicMindsAcademyDB")
             .collection("users");
 
+        // Verify Admin Middleware
+        const verifyAdmin = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            if (user?.role !== "admin") {
+                return res.status(403).send({
+                    error: true,
+                    message: "forbidden access",
+                });
+            }
+        };
+
         // JWT Route
         app.post("/jwt", (req, res) => {
             const user = req.body;
@@ -79,7 +92,21 @@ async function run() {
         });
 
         // Dashboard API Routes
+        // Admin Verify JWT Protected API Route
         app.get("/users/admin/:email", verifyJWT, async (req, res) => {
+            const email = req.params.email;
+            if (req.decoded.email !== email) {
+                return res.send({
+                    admin: false,
+                });
+            }
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            res.send({ admin: user?.role === "admin" });
+        });
+
+        // Instructor Verify JWT Protected API Route
+        app.get("/users/instructor/:email", verifyJWT, async (req, res) => {
             const email = req.params.email;
             if (req.decoded.email !== email) {
                 res.status(403).send({
@@ -89,7 +116,7 @@ async function run() {
             }
             const query = { email: email };
             const user = await usersCollection.findOne(query);
-            res.send({ admin: user?.role === "admin" });
+            res.send({ instructor: user?.role === "instructor" });
         });
 
         // Send a ping to confirm a successful connection
