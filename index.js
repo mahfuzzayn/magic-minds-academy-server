@@ -51,6 +51,9 @@ async function run() {
         const usersCollection = client
             .db("magicMindsAcademyDB")
             .collection("users");
+        const classesCollection = client
+            .db("magicMindsAcademyDB")
+            .collection("users");
 
         // Verify Admin Middleware
         const verifyAdmin = async (req, res, next) => {
@@ -145,6 +148,11 @@ async function run() {
                 res.send(result);
             }
         );
+
+        // Classes API Routes
+        app.post('/classes', verifyJWT, verifyInstructor, async (req, res) => {
+            
+        })
 
         // Dashboard API Routes
         // Admin Verify JWT Protected API Route
