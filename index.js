@@ -178,6 +178,12 @@ async function run() {
                         status: "denied",
                     },
                 };
+            } else if (statusType.action === "feedback") {
+                updatedClass = {
+                    $set: {
+                        feedback: req.body.feedback,
+                    },
+                };
             } else {
                 res.status(204).send({
                     error: true,
