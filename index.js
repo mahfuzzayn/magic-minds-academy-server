@@ -53,7 +53,7 @@ async function run() {
             .collection("users");
         const classesCollection = client
             .db("magicMindsAcademyDB")
-            .collection("users");
+            .collection("classes");
 
         // Verify Admin Middleware
         const verifyAdmin = async (req, res, next) => {
@@ -151,7 +151,9 @@ async function run() {
 
         // Classes API Routes
         app.post('/classes', verifyJWT, verifyInstructor, async (req, res) => {
-            
+            const newClass = req.body;
+            const result = await classesCollection.insertOne(newClass);
+            res.send(result);
         })
 
         // Dashboard API Routes
