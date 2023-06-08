@@ -1,7 +1,7 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
-const { MongoClient, ServerApiVersion } = require("mongodb");
+const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
 require("dotenv").config();
 const port = process.env.PORT || 5000;
@@ -63,6 +63,7 @@ async function run() {
                     message: "forbidden access",
                 });
             }
+            next();
         };
 
         // Verify Instructor Middleware
@@ -76,6 +77,7 @@ async function run() {
                     message: "forbidden access",
                 });
             }
+            next();
         };
 
         // JWT Route
@@ -101,6 +103,18 @@ async function run() {
                 return res.send({ message: "user already exists" });
             }
             const result = await usersCollection.insertOne(user);
+            res.send(result);
+        });
+
+        app.patch("/users/admin/:id", async (req, res) => {
+            const id = req.params.id;
+            const query = { _id: new ObjectId(id) };
+            const updatedDoc = {
+                $set: {
+                    role: "admin",
+                },
+            };
+            const result = await usersCollection.updateOne(query, updatedDoc);
             res.send(result);
         });
 
