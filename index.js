@@ -28,6 +28,7 @@ async function run() {
             const loggedUser = req.body;
             const result = await usersCollection.insertOne(loggedUser);
             res.send(result);
+            
         })
 
         // Send a ping to confirm a successful connection
