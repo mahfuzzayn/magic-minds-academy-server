@@ -284,6 +284,20 @@ async function run() {
             res.send({ instructor: user?.role === "instructor" });
         });
 
+        // Student Verify JWT Protected API Route
+        app.get("/users/student/:email", verifyJWT, async (req, res) => {
+            const email = req.params.email;
+            if (req.decoded.email !== email) {
+                res.status(403).send({
+                    error: true,
+                    message: "forbidden access",
+                });
+            }
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            res.send({ student: user?.role === "student" });
+        });
+
         // Send a ping to confirm a successful connection
         await client.db("admin").command({ ping: 1 });
         console.log(
