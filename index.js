@@ -83,6 +83,23 @@ async function run() {
             next();
         };
 
+        // Verify User Role Middleware
+        const verifyUserRole = async (req, res, next) => {
+            const email = req.decoded.email;
+            const query = { email: email };
+            const user = await usersCollection.findOne(query);
+            if (user?.role === "admin") {
+                next();
+            } else if (user?.role === "instructor") {
+                next();
+            } else {
+                return res.status(403).send({
+                    error: true,
+                    message: "forbidden access",
+                });
+            }
+        };
+
         // JWT Route
         app.post("/jwt", (req, res) => {
             const user = req.body;
@@ -150,7 +167,7 @@ async function run() {
         );
 
         // Classes API Routes
-        app.get("/classes", verifyJWT, verifyAdmin, async (req, res) => {
+        app.get("/classes", verifyJWT, verifyUserRole, async (req, res) => {
             const result = await classesCollection.find().toArray();
             res.send(result);
         });
