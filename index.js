@@ -178,41 +178,83 @@ async function run() {
             res.send(result);
         });
 
-        app.patch("/classes/:id", verifyJWT, verifyAdmin, async (req, res) => {
-            const id = req.params.id;
-            const query = { _id: new ObjectId(id) };
-            const statusType = req.body;
-            let updatedClass = {};
-            if (statusType.action === "approve") {
-                updatedClass = {
-                    $set: {
-                        status: "approved",
-                    },
-                };
-            } else if (statusType.action === "deny") {
-                updatedClass = {
-                    $set: {
-                        status: "denied",
-                    },
-                };
-            } else if (statusType.action === "feedback") {
-                updatedClass = {
-                    $set: {
-                        feedback: req.body.feedback,
-                    },
-                };
-            } else {
-                res.status(204).send({
-                    error: true,
-                    message: "no payload found",
-                });
+        // Admin Only Patch API
+        app.patch(
+            "/classes/admin/:id",
+            verifyJWT,
+            verifyAdmin,
+            async (req, res) => {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) };
+                const statusType = req.body;
+                let updatedClass = {};
+                if (statusType.action === "approve") {
+                    updatedClass = {
+                        $set: {
+                            status: "approved",
+                        },
+                    };
+                } else if (statusType.action === "deny") {
+                    updatedClass = {
+                        $set: {
+                            status: "denied",
+                        },
+                    };
+                } else if (statusType.action === "feedback") {
+                    updatedClass = {
+                        $set: {
+                            feedback: req.body.feedback,
+                        },
+                    };
+                } else if (statusType.action === "updateClass") {
+                    res.send("wait bro");
+                } else {
+                    res.status(204).send({
+                        error: true,
+                        message: "no payload found",
+                    });
+                }
+                const result = await classesCollection.updateOne(
+                    query,
+                    updatedClass
+                );
+                res.send(result);
             }
-            const result = await classesCollection.updateOne(
-                query,
-                updatedClass
-            );
-            res.send(result);
-        });
+        );
+
+        // Instructor or Admin Only Patch API
+        app.patch(
+            "/classes/instructor/:id",
+            verifyJWT,
+            verifyUserRole,
+            async (req, res) => {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) };
+                const statusType = req.body;
+                const modifiedClass = req.body?.updatedClass;
+                let updatedDoc = {};
+                if (statusType.action === "updateClass") {
+                    updatedDoc = {
+                        $set: {
+                            name: modifiedClass?.name,
+                            image: modifiedClass?.image,
+                            availableSeats: modifiedClass?.availableSeats,
+                            price: modifiedClass?.price,
+                        },
+                    };
+                } else {
+                    res.status(204).send({
+                        error: true,
+                        message: "no payload found",
+                    });
+                }
+                const result = await classesCollection.updateOne(
+                    query,
+                    updatedDoc
+                );
+                res.send(result);
+            }
+        );
 
         // Dashboard API Routes
         // Admin Verify JWT Protected API Route
