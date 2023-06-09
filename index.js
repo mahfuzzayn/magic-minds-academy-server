@@ -167,7 +167,13 @@ async function run() {
         );
 
         // Classes API Routes
-        app.get("/classes", verifyJWT, verifyUserRole, async (req, res) => {
+        app.get("/classes", async (req, res) => {
+            const isQuery = req.query;
+            if (Object.keys(isQuery).length !== 0) {
+                const query = { status: isQuery.status };
+                const result = await classesCollection.find(query).toArray();
+                return res.send(result);
+            }
             const result = await classesCollection.find().toArray();
             res.send(result);
         });
