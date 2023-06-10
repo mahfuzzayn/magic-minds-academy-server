@@ -1,9 +1,10 @@
 const express = require("express");
 const app = express();
 const cors = require("cors");
+require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
-require("dotenv").config();
+const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
 // middleware
@@ -54,6 +55,12 @@ async function run() {
         const classesCollection = client
             .db("magicMindsAcademyDB")
             .collection("classes");
+        const selectedClassesCollection = client
+            .db("magicMindsAcademyDB")
+            .collection("selectedClasses");
+        const enrolledClassesCollection = client
+            .db("magicMindsAcademyDB")
+            .collection("enrolledClasses");
 
         // Verify Admin Middleware
         const verifyAdmin = async (req, res, next) => {
@@ -146,6 +153,18 @@ async function run() {
             }
         );
 
+        app.delete(
+            "/users/admin/:id",
+            verifyJWT,
+            verifyAdmin,
+            async (req, res) => {
+                const id = req.params.id;
+                const query = { _id: new ObjectId(id) };
+                const result = await usersCollection.deleteOne(query);
+                res.send(result);
+            }
+        );
+
         app.patch(
             "/users/instructor/:id",
             verifyJWT,
@@ -182,6 +201,87 @@ async function run() {
             const newClass = req.body;
             const result = await classesCollection.insertOne(newClass);
             res.send(result);
+        });
+
+        // Selected Classes API Routes
+        app.get("/selected-classes", verifyJWT, async (req, res) => {
+            const isQuery = req.query;
+            if (Object.keys(isQuery).length !== 0) {
+                const query = { userEmail: isQuery?.email };
+                const result = await selectedClassesCollection
+                    .find(query)
+                    .toArray();
+                return res.send(result);
+            } else {
+                res.status(403).send({
+                    error: true,
+                    message: "forbidden access",
+                });
+            }
+        });
+
+        app.post("/selected-classes", verifyJWT, async (req, res) => {
+            const selectedClass = req.body;
+            const result = await selectedClassesCollection.insertOne(
+                selectedClass
+            );
+            res.send(result);
+        });
+
+        app.delete("/selected-classes/:id", verifyJWT, async (req, res) => {
+            const id = req.params.id;
+            const isQuery = req.query;
+            if (Object.keys(isQuery).length !== 0) {
+                const query = {
+                    _id: new ObjectId(id),
+                    userEmail: isQuery?.email,
+                };
+                const result = await selectedClassesCollection.deleteOne(query);
+                return res.send(result);
+            } else {
+                res.status(403).send({
+                    error: true,
+                    message: "forbidden access",
+                });
+            }
+        });
+
+        // Stripe: Create Payment Intent
+        app.post("/create-payment-intent", verifyJWT, async (req, res) => {
+            const { price } = req.body;
+            const amount = parseInt(price * 100);
+            const paymentIntent = await stripe.paymentIntents.create({
+                amount: amount,
+                currency: "usd",
+                payment_method_types: ["card"],
+            });
+            res.send({
+                clientSecret: paymentIntent.client_secret,
+            });
+        });
+
+        // Payments API
+        app.post("/payments", verifyJWT, async (req, res) => {
+            const enrolledClass = req.body;
+            const insertResult = await enrolledClassesCollection.insertOne(
+                enrolledClass
+            );
+            const filter = { _id: new ObjectId(enrolledClass?.class) };
+            const updatedDoc = {
+                $inc: { enrolledStudents: 1, availableSeats: -1 },
+                $set: { updatedAt: Date() },
+            };
+            const updateResult = await classesCollection.updateOne(
+                filter,
+                updatedDoc
+            );
+            const deleteQuery = {
+                _id: new ObjectId(enrolledClass?.selectedClass),
+            };
+            const deleteResult = await selectedClassesCollection.deleteOne(
+                deleteQuery
+            );
+            res.send({ result: insertResult, deleteResult, updateResult });
         });
 
         // Admin Only Patch API
