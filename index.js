@@ -281,7 +281,7 @@ async function run() {
             const deleteResult = await selectedClassesCollection.deleteOne(
                 deleteQuery
             );
-            res.send({ result: insertResult, deleteResult, updateResult });
+            res.send({ insertResult, deleteResult, updateResult });
         });
 
         // Admin Only Patch API
