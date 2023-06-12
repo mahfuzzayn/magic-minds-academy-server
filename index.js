@@ -4,6 +4,7 @@ const cors = require("cors");
 require("dotenv").config();
 const { MongoClient, ServerApiVersion, ObjectId } = require("mongodb");
 const jwt = require("jsonwebtoken");
+const moment = require("moment/moment");
 const stripe = require("stripe")(process.env.PAYMENT_SECRET_KEY);
 const port = process.env.PORT || 5000;
 
@@ -61,6 +62,10 @@ async function run() {
         const enrolledClassesCollection = client
             .db("magicMindsAcademyDB")
             .collection("enrolledClasses");
+        // Client Slider Data Collection
+        const sliderDataCollection = client
+            .db("magicMindsAcademyDB")
+            .collection("sliderData");
 
         // Verify Admin Middleware
         const verifyAdmin = async (req, res, next) => {
@@ -114,6 +119,34 @@ async function run() {
                 expiresIn: "1h",
             });
             res.send({ token });
+        });
+
+        // Instructors API Route
+        app.get("/instructors", async (req, res) => {
+            const resultOptions = {
+                projection: { _id: 1, name: 1, email: 1, photoURL: 1 },
+            };
+            const instructorsResult = await usersCollection
+                .find({ role: "instructor" }, resultOptions)
+                .toArray();
+            const instructorsEmails = instructorsResult.map(
+                (instructor) => instructor.email
+            );
+            const instructorsClasses = await classesCollection
+                .find({
+                    status: "approved",
+                    instructorEmail: { $in: instructorsEmails },
+                })
+                .toArray();
+            const result = instructorsResult.map((instructor) => {
+                const matchedClasses = instructorsClasses.filter(
+                    (currentClass) =>
+                        currentClass.instructorEmail === instructor.email
+                );
+                return { ...instructor, classes: matchedClasses };
+            });
+
+            res.send(result);
         });
 
         // Users API Routes
@@ -189,9 +222,24 @@ async function run() {
         app.get("/classes", async (req, res) => {
             const isQuery = req.query;
             if (Object.keys(isQuery).length !== 0) {
-                const query = { status: isQuery.status };
-                const result = await classesCollection.find(query).toArray();
-                return res.send(result);
+                if (!!isQuery?.email) {
+                    const query = { instructorEmail: isQuery.email };
+                    const result = await classesCollection
+                        .find(query)
+                        .toArray();
+                    return res.send(result);
+                } else if (!!isQuery?.status) {
+                    const query = { status: isQuery.status };
+                    const result = await classesCollection
+                        .find(query)
+                        .toArray();
+                    return res.send(result);
+                } else {
+                    return res.status(403).send({
+                        error: "true",
+                        message: "query value missing or invalid.",
+                    });
+                }
             }
             const result = await classesCollection.find().toArray();
             res.send(result);
@@ -244,6 +292,38 @@ async function run() {
                     message: "forbidden access",
                 });
             }
+        });
+
+        // Enrolled Classes API Routes
+        app.get("/enrolled-classes", verifyJWT, async (req, res) => {
+            const isQuery = req.query;
+            if (Object.keys(isQuery).length !== 0) {
+                const query = { email: isQuery?.email };
+                const result = await enrolledClassesCollection
+                    .find(query)
+                    .toArray();
+                const sortedDateResult = result.sort((a, b) => {
+                    const dateA = moment(a.date);
+                    const dateB = moment(b.date);
+                    return dateB - dateA;
+                });
+                return res.send(sortedDateResult);
+            } else {
+                res.status(403).send({
+                    error: true,
+                    message: "forbidden access",
+                });
+            }
+        });
+
+        // Popular Classes GET API
+        app.get("/popular-classes", async (req, res) => {
+            const result = await classesCollection
+                .find()
+                .sort({ enrolledStudents: -1 })
+                .limit(6)
+                .toArray();
+            res.send(result);
         });
 
         // Stripe: Create Payment Intent
@@ -404,11 +484,17 @@ async function run() {
             res.send({ student: user?.role === "student" });
         });
 
+        // Client Slider Data GET API
+        app.get("/slider-data", async (req, res) => {
+            const result = await sliderDataCollection.find().toArray();
+            res.send(result);
+        });
+
         // Send a ping to confirm a successful connection
-        await client.db("admin").command({ ping: 1 });
-        console.log(
-            "Pinged your deployment. You successfully connected to MongoDB!"
-        );
+        // await client.db("admin").command({ ping: 1 });
+        // console.log(
+        //     "Pinged your deployment. You successfully connected to MongoDB!"
+        // );
     } finally {
         // Finally Goes Here...
     }
