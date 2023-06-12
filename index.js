@@ -62,6 +62,10 @@ async function run() {
         const sliderDataCollection = client
             .db("magicMindsAcademyDB")
             .collection("sliderData");
+        // Client FAQ Data Collection
+        const faqDataCollection = client
+            .db("magicMindsAcademyDB")
+            .collection("faqData");
 
         // Verify Admin Middleware
         const verifyAdmin = async (req, res, next) => {
@@ -483,6 +487,12 @@ async function run() {
         // Client Slider Data GET API
         app.get("/slider-data", async (req, res) => {
             const result = await sliderDataCollection.find().toArray();
+            res.send(result);
+        });
+
+        // FAQ Data GET API
+        app.get("/faq-data", async (req, res) => {
+            const result = await faqDataCollection.find().toArray();
             res.send(result);
         });
 
